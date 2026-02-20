@@ -1208,7 +1208,6 @@ function calcDist(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
 }
-
 function sendOrder() {
   const name = document.getElementById('customerName').value.trim();
   const phone = document.getElementById('customerPhone').value.trim();
@@ -1227,7 +1226,6 @@ function sendOrder() {
   const sub = getTotalPrice();
   const items = [];
   
-  // Simple: no variants
   products.forEach(p => {
     if (p.quantity > 0) {
       items.push({
@@ -1241,6 +1239,7 @@ function sendOrder() {
   const final = sub + currentShippingCost;
   currentOrderData = {name, phone, address, items, subtotal: sub};
   
+  // Format jarak (jika ada GPS)
   let distInfo = '';
   if (userCoords.lat && userCoords.lng) {
     const d = calcDist(
@@ -1249,36 +1248,55 @@ function sendOrder() {
       userCoords.lat,
       userCoords.lng
     );
-    distInfo = '\\n📏 *Jarak:* ' + d.toFixed(2) + ' km dari toko';
+    distInfo = `
+📏 *Jarak:* ${d.toFixed(2)} km dari toko`;
   }
   
-  let msg = '🛒 *PESANAN BARU*\\n\\n';
-  msg += '👤 *Nama:* ' + name + '\\n';
-  msg += '📱 *HP:* ' + phone + '\\n';
-  msg += '📍 *Alamat:* ' + address + distInfo + '\\n\\n';
-  msg += '📦 *Detail Pesanan:*\\n';
+  // BUILD MESSAGE - FORMAT RAPI
+  let msg = `🛒 *PESANAN BARU*
+
+👤 *Nama:* ${name}
+📱 *HP:* ${phone}
+📍 *Alamat:* ${address}${distInfo}
+
+📦 *Detail Pesanan:*`;
   
+  // Add items
   items.forEach(i => {
-    msg += '• ' + i.name + ' x' + i.qty + ' = Rp ' + i.total.toLocaleString('id-ID') + '\\n';
+    msg += `
+• ${i.name} x${i.qty} = Rp ${i.total.toLocaleString('id-ID')}`;
   });
   
-  msg += '\\n💰 *Subtotal:* Rp ' + sub.toLocaleString('id-ID') + '\\n';
+  // Add totals
+  msg += `
+
+💰 *Subtotal:* Rp ${sub.toLocaleString('id-ID')}`;
   
+  // Payment method specific
   if (selectedPayment === 'shopee') {
-    msg += '💳 *Pembayaran:* ShopeePay\\n';
-    msg += '📱 *Transfer ke:* ' + storeSettings.shopeePayNumber + '\\n';
-    msg += '🚚 *Ongkir:* ' + (currentShippingCost > 0 ? 'Rp ' + currentShippingCost.toLocaleString('id-ID') : 'GRATIS 🎉') + '\\n';
-    msg += '💵 *GRAND TOTAL:* Rp ' + final.toLocaleString('id-ID') + '\\n';
-    msg += '⚠️ Mohon transfer & kirim bukti.';
+    msg += `
+💳 *Pembayaran:* ShopeePay
+📱 *Transfer ke:* ${storeSettings.shopeePayNumber}
+🚚 *Ongkir:* ${currentShippingCost > 0 ? 'Rp ' + currentShippingCost.toLocaleString('id-ID') : 'GRATIS 🎉'}
+
+💵 *GRAND TOTAL:* Rp ${final.toLocaleString('id-ID')}
+
+⚠️ Mohon transfer & kirim bukti.`;
+    
     showShopeePayTutorial(final, currentOrderData);
     return;
+    
   } else {
-    msg += '💵 *Pembayaran:* COD (Bayar di Tempat)\\n';
-    msg += '🚚 *Ongkir COD:* ' + (currentShippingCost > 0 ? 'Rp ' + currentShippingCost.toLocaleString('id-ID') : 'GRATIS 🎉') + '\\n';
-    msg += '💵 *GRAND TOTAL:* Rp ' + final.toLocaleString('id-ID') + '\\n';
-    msg += '💵 Siapkan uang pas saat kurir tiba.';
+    msg += `
+💵 *Pembayaran:* COD (Bayar di Tempat)
+🚚 *Ongkir COD:* ${currentShippingCost > 0 ? 'Rp ' + currentShippingCost.toLocaleString('id-ID') : 'GRATIS 🎉'}
+
+💵 *GRAND TOTAL:* Rp ${final.toLocaleString('id-ID')}
+
+💰 Siapkan uang pas saat kurir tiba.`;
   }
   
+  // Send to WhatsApp
   window.open('https://wa.me/' + storeSettings.whatsappNumber + '?text=' + encodeURIComponent(msg), '_blank');
   closeOrderModal();
 }
